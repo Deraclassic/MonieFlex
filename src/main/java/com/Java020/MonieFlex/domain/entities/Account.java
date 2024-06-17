@@ -22,9 +22,6 @@ public class Account extends BaseClass {
 
     private BigDecimal accountBalance;
 
-    @Transient
-    private String customerName;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;
@@ -37,15 +34,4 @@ public class Account extends BaseClass {
 
     @OneToMany(mappedBy = "account", cascade = CascadeType.ALL)
     private List<Card> cards;
-
-    @PrePersist
-    @PreUpdate
-    private void updateCustomerName() {
-        if (customer != null) {
-            this.customerName = String.format("%s %s %s",
-                    customer.getFirstName() != null ? customer.getFirstName() : "",
-                    customer.getMiddleName() != null ? customer.getMiddleName() : "",
-                    customer.getLastName() != null ? customer.getLastName() : "").trim();
-        }
-    }
 }
