@@ -89,7 +89,7 @@ public class Customer extends BaseClass implements UserDetails, Principal {
         return enabled;
     }
 
-    private String fullName(){
+    public String fullName(){
         return firstName + " " + middleName + " " + lastName;
     }
 

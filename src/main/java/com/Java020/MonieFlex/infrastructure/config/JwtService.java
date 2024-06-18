@@ -19,10 +19,10 @@ import java.util.function.Function;
 @Service
 @RequiredArgsConstructor
 public class JwtService {
+    @Value("${app.jwt-expiration}")
     private long jwtExpiration;
     @Value("${app.jwt-secret}")
     private String secretKey;
-    @Value("${app.jwt-expiration}")
 
 
     public String extractUsername(String token) {

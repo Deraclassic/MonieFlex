@@ -11,26 +11,19 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ConfirmationToken extends BaseClass{
+@Table(name = "token")
+public class ConfirmationToken {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true)
     private String token;
-    private LocalDateTime expiredAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;
     private LocalDateTime confirmedAt;
 
     @ManyToOne
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
-
-    @PrePersist
-    protected void onCreate() {
-        this.expiredAt = LocalDateTime.now().plusDays(1); // 24 hours later
-        this.confirmedAt = null;
-    }
-
-    @PreUpdate
-    protected void onConfirm() {
-        if (this.confirmedAt != null) {
-            return; // confirmedAt already set, no need to update
-        }
-        this.confirmedAt = LocalDateTime.now();
-    }
 }
