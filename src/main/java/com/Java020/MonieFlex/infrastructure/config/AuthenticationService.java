@@ -3,7 +3,9 @@ package com.Java020.MonieFlex.infrastructure.config;
 import com.Java020.MonieFlex.domain.entities.ConfirmationToken;
 import com.Java020.MonieFlex.domain.entities.Customer;
 import com.Java020.MonieFlex.domain.enums.EmailTemplateName;
+import com.Java020.MonieFlex.payload.request.AuthenticationRequest;
 import com.Java020.MonieFlex.payload.request.RegistrationRequest;
+import com.Java020.MonieFlex.payload.response.AuthenticationResponse;
 import com.Java020.MonieFlex.repository.ConfirmationTokenRepository;
 import com.Java020.MonieFlex.repository.CustomerRepository;
 import com.Java020.MonieFlex.repository.RoleRepository;
@@ -12,11 +14,15 @@ import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 
 @Service
@@ -27,6 +33,8 @@ public class AuthenticationService {
     private final CustomerRepository customerRepository;
     private final ConfirmationTokenRepository tokenRepository;
     private final EmailService emailService;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
     @Value("${frontend-host}")
     private String activateUrl;
 
@@ -95,5 +103,38 @@ public class AuthenticationService {
             codeBuilder.append(characters.charAt(randomIndex));
         }
         return codeBuilder.toString();
+    }
+
+    public AuthenticationResponse authenticate(AuthenticationRequest request){
+        var auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
+        var claims = new HashMap<String, Object>();
+        var user = ((Customer)auth.getPrincipal());
+        claims.put("fullName", user.fullName());
+        var jwtToken = jwtService.generateToken(claims, user);
+        return AuthenticationResponse.builder()
+                .token(jwtToken)
+                .build();
+    }
+
+    @Transactional
+    public void activateAccount(String token) throws MessagingException {
+        ConfirmationToken saveToken = tokenRepository.findByToken(token)
+                //todo exception has to be defined
+                .orElseThrow(()-> new RuntimeException("Invalid Token"));
+        if (LocalDateTime.now().isAfter(saveToken.getExpiresAt())){
+            sendValidationEmail(saveToken.getCustomer());
+            throw new RuntimeException("Activation token has expired. A new token has been sent to the same email address");
+        }
+        var user = customerRepository.findById(saveToken.getCustomer().getId())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+        user.setEnabled(true);
+        customerRepository.save(user);
+        saveToken.setConfirmedAt(LocalDateTime.now());
+        tokenRepository.save(saveToken);
     }
 }
